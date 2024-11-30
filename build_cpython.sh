@@ -1,0 +1,1 @@
+docker build -t pypy_fastapi_cpython -f Dockerfile.cpython .

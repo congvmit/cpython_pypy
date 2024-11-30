@@ -1,0 +1,27 @@
+FROM pypy:3.9-slim-buster AS build
+WORKDIR /api
+RUN apt-get -y update && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+COPY ./api/requirements.txt /api/requirements.txt
+RUN pypy -m pip install -U pip && pypy -m pip install --no-cache-dir --target=packages -r /api/requirements.txt
+
+
+# Stage 2
+FROM pypy:3.9-slim-buster AS runtime
+
+# Copying Dependencies from build stage  
+COPY --from=build /api/packages /opt/pypy/lib/pypy3.9/site-packages/
+ENV PYTHONPATH=/opt/pypy/lib/pypy3.9/site-packages/
+# ENV PYTHONUNBUFFERED=1
+# ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/opt/pypy/lib/pypy3.9/site-packages/bin:$PATH"
+
+ENV TZ=Europe/London
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezones
+
+COPY ./api /api
+WORKDIR /api
+
+# Set default number of workerso
+ENV WORKERS=1
+# CMD ["pypy", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80", "--proxy-headers", "--workers", "${WORKERS}"]
+CMD ["sh", "-c", "pypy -m uvicorn main:app --host 0.0.0.0 --port 80 --workers ${WORKERS}"]
